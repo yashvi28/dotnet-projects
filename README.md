@@ -1,1 +1,1 @@
-# dotnet-projects
+Building a simple API with Copilot
