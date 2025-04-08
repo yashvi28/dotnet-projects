@@ -1,0 +1,214 @@
+//first activity
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+// Use middleware
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();
+
+
+public class User
+{
+    public int Id { get; set; }
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+    public string Email { get; set; }
+}
+
+
+[ApiController]
+[Route("api/[controller]")]
+public class UsersController : ControllerBase
+{
+    private static List<User> Users = new List<User>();
+
+    [HttpGet]
+    public ActionResult<IEnumerable<User>> GetUsers() => Ok(Users);
+
+    [HttpGet("{id}")]
+    public ActionResult<User> GetUser(int id)
+    {
+        var user = Users.FirstOrDefault(u => u.Id == id);
+        return user is not null ? Ok(user) : NotFound();
+    }
+
+    [HttpPost]
+    public ActionResult<User> CreateUser(User user)
+    {
+        user.Id = Users.Count + 1;
+        Users.Add(user);
+        return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
+    }
+
+    [HttpPut("{id}")]
+    public IActionResult UpdateUser(int id, User updatedUser)
+    {
+        var user = Users.FirstOrDefault(u => u.Id == id);
+        if (user is null) return NotFound();
+
+        user.FirstName = updatedUser.FirstName;
+        user.LastName = updatedUser.LastName;
+        user.Email = updatedUser.Email;
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    public IActionResult DeleteUser(int id)
+    {
+        var user = Users.FirstOrDefault(u => u.Id == id);
+        if (user is null) return NotFound();
+
+        Users.Remove(user);
+        return NoContent();
+    }
+}
+
+
+
+
+//second activity
+
+
+
+
+if (string.IsNullOrWhiteSpace(user.FirstName) || string.IsNullOrWhiteSpace(user.LastName))
+{
+    return BadRequest("First name and last name are required.");
+}
+if (!IsValidEmail(user.Email))
+{
+    return BadRequest("Invalid email address.");
+}
+
+public class User
+{
+    public int Id { get; set; }
+
+    [Required]
+    public string FirstName { get; set; }
+
+    [Required]
+    public string LastName { get; set; }
+
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; }
+}
+
+if (!ModelState.IsValid)
+{
+    return BadRequest(ModelState);
+}
+
+try
+{
+    // your logic
+}
+catch (Exception ex)
+{
+    return StatusCode(500, $"Internal server error: {ex.Message}");
+}
+
+[HttpGet]
+public ActionResult<IEnumerable<User>> GetUsers(int page = 1, int pageSize = 10)
+{
+    var paginatedUsers = Users.Skip((page - 1) * pageSize).Take(pageSize);
+    return Ok(paginatedUsers);
+}
+
+
+
+
+//third activity
+
+public class LoggingMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly ILogger<LoggingMiddleware> _logger;
+
+    public LoggingMiddleware(RequestDelegate next, ILogger<LoggingMiddleware> logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
+
+    public async Task Invoke(HttpContext context)
+    {
+        _logger.LogInformation($"Request: {context.Request.Method} {context.Request.Path}");
+
+        await _next(context);
+
+        _logger.LogInformation($"Response: {context.Response.StatusCode}");
+    }
+}
+
+public class ErrorHandlingMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ErrorHandlingMiddleware> _logger;
+
+    public ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
+
+    public async Task Invoke(HttpContext context)
+    {
+        try
+        {
+            await _next(context);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unhandled exception");
+
+            context.Response.StatusCode = 500;
+            context.Response.ContentType = "application/json";
+            var response = new { error = "Internal server error." };
+            await context.Response.WriteAsJsonAsync(response);
+        }
+    }
+}
+
+
+public class TokenAuthenticationMiddleware
+{
+    private readonly RequestDelegate _next;
+
+    public TokenAuthenticationMiddleware(RequestDelegate next)
+    {
+        _next = next;
+    }
+
+    public async Task Invoke(HttpContext context)
+    {
+        if (!context.Request.Headers.TryGetValue("Authorization", out var token) || token != "Bearer YOUR_SECRET_TOKEN")
+        {
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsync("Unauthorized");
+            return;
+        }
+
+        await _next(context);
+    }
+}
+
+app.UseMiddleware<ErrorHandlingMiddleware>();
+app.UseMiddleware<TokenAuthenticationMiddleware>();
+app.UseMiddleware<LoggingMiddleware>();
